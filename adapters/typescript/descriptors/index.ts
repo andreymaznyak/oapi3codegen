@@ -1,10 +1,13 @@
 import { NumberTypeScriptDescriptor } from "./number";
 import { StringTypeScriptDescriptor } from "./string";
+import { BooleanTypeScriptDescriptor } from "./boolean";
 import { ObjectTypeScriptDescriptor } from "./object";
 import { AnyTypeScriptDescriptor } from "./any";
+import { NullTypeScriptDescriptor } from "./null";
 import { EnumTypeScriptDescriptor } from "./enum";
 import { ArrayTypeScriptDescriptor } from "./array";
 import { SomeOfTypeScriptDescriptor } from "./some-of";
+import { Instanceof } from "./instanceof";
 
 /**
  * Правила для определения: какой тип данных будет использоваться.
@@ -138,6 +141,47 @@ export const rules = [
             additionalProperties: true
         },
         classConstructor: ArrayTypeScriptDescriptor
+    },
+    {
+        rule: {
+            type: 'object',
+            required: ['type'],
+            properties: {
+                type: {
+                    type: 'string',
+                    pattern: 'boolean'
+                }
+            },
+            additionalProperties: true
+        },
+        classConstructor: BooleanTypeScriptDescriptor
+    },
+    {
+        rule: {
+            type: 'object',
+            required: ['type'],
+            properties: {
+                type: {
+                    type: 'string',
+                    pattern: 'null'
+                }
+            },
+            additionalProperties: true
+        },
+        classConstructor: NullTypeScriptDescriptor
+    },
+    {
+        rule: {
+            type: 'object',
+            required: ['instanceof'],
+            properties: {
+                'instanceof': {
+                    type: 'string'
+                }
+            },
+            additionalProperties: true
+        },
+        classConstructor: Instanceof
     },
     // тип по-умолчанию
     {

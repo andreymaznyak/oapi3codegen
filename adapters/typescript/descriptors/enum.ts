@@ -46,7 +46,7 @@ export class EnumTypeScriptDescriptor extends AbstractTypeScriptDescriptor imple
 
     constructor (
 
-        protected schema: any,
+        public schema: any,
 
         /**
          * Родительский конвертор, который используется
@@ -108,6 +108,19 @@ export class EnumTypeScriptDescriptor extends AbstractTypeScriptDescriptor imple
         rootLevel: boolean = true
     ): string {
 
+        const type = this.schema.type;
+
+        // especially case: string variants
+        if ( !rootLevel &&
+             (type === 'string' ||
+                 (_.isArray(type) && type[0] === 'string'))) {
+
+            return _.map(this.schema.enum, (v) => JSON.stringify(v))
+                .join(' | ');
+        }
+
+        // other cases
+
         if(!rootLevel && this.modelName) {
             childrenDependencies.push(this);
         }
@@ -122,7 +135,9 @@ export class EnumTypeScriptDescriptor extends AbstractTypeScriptDescriptor imple
     }
 
     private _enumItemName(name: string): string {
-        name = _.camelCase(name.replace(/^$[^\w]+/g, ''));
+        name = name.replace(/\-$/, 'Minus');
+        name = name.replace(/\+$/, 'Plus');
+        name = _.camelCase(name.replace(/[^\w]+/g, ''));
         name = name.replace(
             /^./,
             name[0].match(/^\d+$/)

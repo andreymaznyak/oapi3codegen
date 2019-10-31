@@ -1,0 +1,314 @@
+{
+  "openapi": "3.0.0",
+  "servers": [
+    {
+      "url": "http://lk.cm.local/api/site/"
+    }
+  ],
+  "info": {
+    "title": "Media: работа c медиа объектами",
+    "version": "0.1.0"
+  },
+  "tags": [
+    {
+      "name": "Медиа"
+    }
+  ],
+  "paths": {
+    "/media": {
+      "post": {
+        "tags": [
+          "Медиа"
+        ],
+        "summary": "Загрузка изображения на медиа-сервер",
+        "operationId": "postMedia",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "filename": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Media"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorBadRequest"
+                }
+              }
+            }
+          },
+          "401": {
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "default": "WWW-Authenticate: Bearer realm=\"password_grant\""
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorUnauthorized"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorForbidden"
+                }
+              }
+            }
+          },
+          "500": {}
+        }
+      }
+    },
+    "/media/presets/{preset}": {
+      "get": {
+        "tags": [
+          "Медиа"
+        ],
+        "summary": "Получение пресетов для типа объекта",
+        "operationId": "getMediaPresets",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preset",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "cars",
+                "news"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/Both"
+                      },
+                      {
+                        "$ref": "#/components/schemas/Width"
+                      },
+                      {
+                        "$ref": "#/components/schemas/Height"
+                      },
+                      {
+                        "$ref": "#/components/schemas/Side"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorNotFound"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Media": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "title": "Строковой идентификатор",
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 32,
+            "pattern": "^[a-f0-9]{32}$"
+          }
+        }
+      },
+      "Both": {
+        "type": "object",
+        "required": [
+          "width",
+          "height"
+        ],
+        "properties": {
+          "width": {
+            "type": "integer"
+          },
+          "height": {
+            "type": "integer"
+          }
+        }
+      },
+      "Width": {
+        "type": "object",
+        "required": [
+          "width"
+        ],
+        "properties": {
+          "width": {
+            "type": "integer"
+          }
+        }
+      },
+      "Height": {
+        "type": "object",
+        "required": [
+          "height"
+        ],
+        "properties": {
+          "height": {
+            "type": "integer"
+          }
+        }
+      },
+      "Side": {
+        "type": "object",
+        "required": [
+          "side"
+        ],
+        "properties": {
+          "side": {
+            "type": "integer"
+          }
+        }
+      },
+      "JsonError": {
+        "type": "object",
+        "required": [
+          "originalMessage",
+          "jsonPointer"
+        ],
+        "properties": {
+          "originalMessage": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "jsonPointer": {
+            "type": "string"
+          }
+        }
+      },
+      "HttpErrorBadRequest": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "syntax",
+              "semantic"
+            ]
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JsonError"
+            }
+          }
+        }
+      },
+      "WwwAuthenticate": {
+        "type": "object",
+        "required": [
+          "title",
+          "type",
+          "realm"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "realm": {
+            "type": "string"
+          }
+        }
+      },
+      "HttpErrorUnauthorized": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "wwwAuthenticate": {
+            "$ref": "#/components/schemas/WwwAuthenticate"
+          }
+        }
+      },
+      "HttpErrorForbidden": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "HttpErrorNotFound": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$id": "media.json"
+}

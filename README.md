@@ -179,19 +179,19 @@ npm install typescript@latest -g
 ##### 2. Install oapi3codegen global (for CLI using)
 
 ```sh
-npm install oapi3codegen -g
+npm install @cme/oapi3codegen -g
 ``` 
 
 ##### 3. Install oapi3codegen for local project
 
 ```sh
-npm install oapi3codegen --save
+npm install @cme/oapi3codegen --save
 ``` 
 
 ## Using via CLI
 
 ```sh
-oapi3codegen --srcPath /PATH/TO/SRC/open-api-file.json --destPath /PATH/TO/DEST --separatedFiles true
+@cme/oapi3codegen --srcPath /PATH/TO/SRC/open-api-file.json --destPath /PATH/TO/DEST --separatedFiles true
 ```
 
 #### CLI arguments
@@ -215,7 +215,7 @@ config via CLI:
 You can convert whole OpenAPI3-specification:
 
 ```typescript
-import { Convertor } from 'oapi3codegen';
+import { Convertor } from '@cme/oapi3codegen';
 
 const convertor: Convertor = new Convertor();
 
@@ -249,7 +249,7 @@ And also, you can convert stand-alone JSON-schema into type descriptor,
 that could be rendered:
 
 ```typescript
-import { Convertor } from 'oapi3codegen';
+import { Convertor } from '@cme/oapi3codegen';
 // you need prettier to beautify result of rendering
 import * as prettier from 'prettier';
 // provides `_.each(...)` for our example

@@ -1,6 +1,6 @@
 {
-  "name": "oapi3codegen",
-  "version": "0.1.19",
+  "name": "@cme/oapi3codegen",
+  "version": "2.0.0-tmp",
   "description": "OpenAPI 3 codegeneration for TypeScript: interfaces, validations, APIs",
   "main": "index.ts",
   "bin": {
@@ -11,7 +11,8 @@
     "start": "node ./dist/cli.js",
     "build": "tsc",
     "build:start": "tsc && node ./dist/cli.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:intergate": "npm run build && rm -rf ./generated && node ./dist/cli.js --srcPath ./tests/media.json --destPath ./generated --separatedFiles true"
   },
   "repository": "https://github.com/koshevy/oapi3codegen",
   "keywords": [
@@ -39,6 +40,11 @@
     "fs-extra": "^5.0.0",
     "lodash": "^4.17.10",
     "prettier": "1.16.4",
-    "typescript": "~3.5.3"
+    "typescript": "~3.5.3",
+    "@cme/oapi3codegen-agent-angular": "^2.0.0"
+  },
+  "publishConfig": {
+    "registry": "https://npm.cm.expert/repository/cmexpert/",
+    "access": "public"
   }
 }

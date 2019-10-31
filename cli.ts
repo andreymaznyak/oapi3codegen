@@ -2,6 +2,7 @@
 
 // Node.js construction
 const path = require('path');
+const fs = require('fs');
 
 import * as _ from 'lodash';
 import * as prettier from 'prettier';
@@ -9,11 +10,33 @@ import * as fsExtra from 'fs-extra';
 import * as download from 'download';
 import { getArvgParam } from './lib';
 
-import { Convertor } from './adapters/typescript';
+import {
+    Convertor,
+    ClassRenderer
+} from './adapters/typescript';
+import { ObjectTypeScriptDescriptor } from './adapters/typescript/descriptors/object';
 import {
     DataTypeDescriptor,
-    defaultConfig as defaultConvertorConfig
+    ConvertorConfig,
+    defaultConfig as defaultConvertorConfig,
+    ApiMetaInfo
 } from './core';
+
+_.templateSettings.interpolate = /{{([\s\S]+?)}}/g;
+
+const prettierOptions = {
+    parser: 'typescript',
+    bracketSpacing: true,
+    singleQuote: true
+};
+
+// *****************
+// *** CLI Arguments for Convrtor`s config
+
+const convertorConfig: ConvertorConfig = _.mapValues(
+    defaultConvertorConfig,
+    (v, k) => getArvgParam(k) || v
+);
 
 // *****************
 // *** CLI Arguments
@@ -28,18 +51,28 @@ const destPath = getArvgParam('destPath');
 const separatedFiles = getArvgParam('separatedFiles') || false;
 
 if(!srcPath)
-     throw new Error('--srcPath is not set!');
+    throw new Error('--srcPath is not set!');
 
 const destPathAbs = destPath
     ? path.resolve(process.cwd(), destPath)
     : path.resolve(process.cwd(), './generated-code');
 
-// *****************
-// *** CLI Arguments for Convrtor`s config
+/**
+ * Path for models and types.
+ */
+const typingsPathAbs = path.resolve(
+    destPathAbs,
+    convertorConfig.typingsDirectory
+);
 
-const convertorConfig = _.mapValues(
-    defaultConvertorConfig,
-    (v, k) => getArvgParam(k) || v
+const servicesPathAbs = path.resolve(
+    destPathAbs,
+    convertorConfig.servicesDirectory
+);
+
+const mocksPathAbs = path.resolve(
+    destPathAbs,
+    convertorConfig.mocksDirectory
 );
 
 // ******************
@@ -47,11 +80,52 @@ const convertorConfig = _.mapValues(
 
 const convertor: Convertor = new Convertor(convertorConfig);
 
+const metaInfo: ApiMetaInfo[] = [];
+
+const apiServiceTemplate = _.template(require('@cme/oapi3codegen-agent-angular/templates')
+    .get('api-service')
+    .toString());
+
+const jsonStringifyReplacer = (key, value: any) => {
+
+    // adding supports of Swagger's `nullable`
+    if (_.isObject(value) && value.nullable) {
+        delete value.nullable;
+        const schemaCopy = _.cloneDeep(value);
+
+        return {
+            anyOf: [
+                {
+                    type: 'null',
+                    description: 'OApi Nullable'
+                },
+                schemaCopy
+            ]
+        };
+    }
+
+    // cut off titles and descriptions
+    if (
+        _.includes(['description' /*, 'title' */], key)
+        && ('string' === typeof key)) {
+
+        return undefined;
+    }
+
+    // cut off examples
+    if (key === 'example') {
+        return undefined;
+    }
+
+    return value;
+};
+
 // work with URL
 if(srcPath.match(/^https?:/)) {
     download(srcPath).then(data => {
-        convertor.loadOAPI3Structure(JSON.parse(data.toString()));
-        executeCliAction();
+        const oapiData = JSON.parse(data.toString());
+        convertor.loadOAPI3Structure(oapiData);
+        executeCliAction(oapiData);
     });
 } else {
 
@@ -61,20 +135,24 @@ if(srcPath.match(/^https?:/)) {
     if(!fsExtra.pathExistsSync(srcPathAbs))
         throw new Error(`File ${srcPathAbs} is not exists!`);
 
-    // work with files
-    convertor.loadOAPI3StructureFromFile(path.resolve(
-        process.cwd(), srcPath
+    const data = JSON.parse(fs.readFileSync(
+        path.resolve(
+            process.cwd(), srcPath
+        ),
+        'utf8'
     ));
 
-    executeCliAction();
+    // work with files
+    convertor.loadOAPI3Structure(data);
+
+    executeCliAction(data);
 }
 
-function executeCliAction() {
+function executeCliAction(oapiData) {
 
-    let context = {};
-    let entryPoints = convertor.getOAPI3EntryPoints(context);
-
-    let summaryTextPieces = [];
+    const context = {};
+    const entryPoints = convertor.getOAPI3EntryPoints(context, metaInfo);
+    const summaryTextPieces = [];
 
     /**
      * Immutable value of array intended to collect
@@ -82,6 +160,119 @@ function executeCliAction() {
      * @type {any[]}
      */
     let alreadyRendered: DataTypeDescriptor[] = [];
+
+    const baseFileName = path.parse(srcPath).name;
+    const newOapiFilePath = path.resolve(
+        servicesPathAbs,
+        `${baseFileName}.json`
+    );
+
+    const servicesIndex = [];
+
+    oapiData.$id = `${baseFileName}.json`;
+
+    fsExtra.outputFile(
+        newOapiFilePath,
+        JSON.stringify(
+            oapiData,
+            jsonStringifyReplacer
+        )
+    );
+
+    // saving angular services
+    _.each(metaInfo, (metaInfoItem: ApiMetaInfo) => {
+        const serviceFileName = path.resolve(
+            servicesPathAbs,
+            `./${_.kebabCase(metaInfoItem.baseTypeName)}.service.ts`
+        );
+
+        const mockFileName = path.resolve(
+            mocksPathAbs,
+            `./${_.kebabCase(metaInfoItem.baseTypeName)}.json`
+        );
+
+        metaInfoItem.apiSchemaFile = baseFileName;
+        metaInfoItem.typingsDirectory = path.join(
+            '../',
+            convertorConfig.typingsDirectory
+        );
+
+        const responseDescriptor = convertor.convert(
+            metaInfoItem.responseSchema,
+            context,
+            metaInfoItem.responseModelName,
+            metaInfoItem.responseModelName,
+            null,
+            []
+        );
+
+        let mockData;
+
+        if (responseDescriptor[0] &&
+            responseDescriptor[0] instanceof ObjectTypeScriptDescriptor
+        ) {
+            const responseModel = <ObjectTypeScriptDescriptor>responseDescriptor[0];
+            mockData = responseModel.getExampleValue();
+        }
+
+        metaInfoItem = _.mapValues(metaInfoItem, (v, k) => {
+            switch (k) {
+                case 'typingsDependencies':
+                    return _.map(v, t => !t ? 'null' : t).join(', ');
+                case 'path':
+                case 'method':
+                case 'queryParams':
+                case 'servers':
+                case 'responseSchema':
+                case 'requestSchema':
+                case 'paramsSchema':
+                    return JSON.stringify(
+                        v,
+                        jsonStringifyReplacer
+                    ).replace(
+                        /"#\/components/g,
+                        `"${baseFileName}.json#/components`
+                    );
+            }
+
+            return v || 'null';
+        });
+
+        const serviceRendered = apiServiceTemplate(metaInfoItem);
+
+        servicesIndex.push(path.basename(serviceFileName, '.ts'));
+
+        // save file with service
+        fsExtra.outputFile(
+            serviceFileName,
+            prettier.format(
+                serviceRendered,
+                prettierOptions
+            )
+        );
+
+        // save JSON-file with mock
+        if (mockData) {
+            fsExtra.outputFile(
+                mockFileName,
+                JSON.stringify(mockData, null, '  ')
+            );
+        }
+    });
+
+    // output index of services
+    fsExtra.outputFile(
+        path.resolve(
+            servicesPathAbs,
+            './index.ts'
+        ),
+        prettier.format(
+            _.map(servicesIndex, serviceFileName =>
+                `export * from './${serviceFileName}';`
+            ).join('\n'),
+            prettierOptions
+        )
+    );
 
     /**
      * Rendering each type:
@@ -91,17 +282,33 @@ function executeCliAction() {
     Convertor.renderRecursive(
         entryPoints,
         (descriptor, text) => {
+
+            /*
+            fixme experimental code test
+            if (descriptor instanceof ObjectTypeScriptDescriptor){
+                const classRenderer = new ClassRenderer(
+                    <ObjectTypeScriptDescriptor>descriptor
+                );
+
+                const classCode = classRenderer.render();
+                console.log(prettier.format(
+                    classCode,
+                    {parser: 'typescript'}
+                ));
+            }
+            */
+
             // Single file
             if (!separatedFiles) {
                 summaryTextPieces.push(
                     prettier.format(
                         text,
-                        {parser: 'typescript'}
+                        prettierOptions
                     ));
             } else {
 
                 const outputFilePath = path.resolve(
-                    destPathAbs,
+                    typingsPathAbs,
                     `${_.kebabCase(descriptor.modelName)}.ts`
                 );
 
@@ -114,17 +321,17 @@ function executeCliAction() {
 
                 const fileText = `${
                     _.map(
-                        dependencies,
+                        _.uniq(dependencies),
                         (dep: DataTypeDescriptor) =>
                             `import { ${dep.modelName} } from './${_.kebabCase(dep.modelName)}';`
                     ).join(';\n')
-                    }\n\n${modelText}`;
+                }\n\n${modelText}`;
 
                 fsExtra.outputFile(
                     outputFilePath,
                     prettier.format(
                         fileText,
-                        {parser: 'typescript'}
+                        prettierOptions
                     )
                 );
 
@@ -138,7 +345,7 @@ function executeCliAction() {
      * Output render results into file(s)
      */
 
-// Single file
+    // Single file
     if (!separatedFiles) {
 
         const fileInfo = path.parse(srcPath);
@@ -146,19 +353,21 @@ function executeCliAction() {
         if (!fileInfo['name'])
             throw new Error(`Can't extract name if path in "${srcPath}"`);
 
-        const outputFilePath = path.resolve(destPathAbs, `${fileInfo['name']}.ts`);
+        const outputFilePath = path.resolve(typingsPathAbs, `${fileInfo['name']}.ts`);
 
         fsExtra.outputFile(
             outputFilePath,
             prettier.format(
                 summaryTextPieces.join('\n'),
-                {parser: 'typescript'}
+                prettierOptions
             )
         );
 
         console.log(`Result was saved in single file: ${outputFilePath}`);
         console.log('Render complete. These types was created:');
+
         _.each(alreadyRendered.sort(), v => console.log(v.toString()));
+
     } else {
         // creating index.ts file
 
@@ -173,12 +382,11 @@ function executeCliAction() {
 
         // Index file
         fsExtra.outputFile(
-            path.resolve(destPathAbs, `./index.ts`),
+            path.resolve(typingsPathAbs, `./index.ts`),
             prettier.format(
                 _.map(indexItems, v => `export * from './${v}'`).join(';\n'),
-                {parser: 'typescript'}
+                prettierOptions
             )
         );
     }
-
 }

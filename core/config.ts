@@ -10,6 +10,8 @@ export interface ConvertorConfig {
      */
     defaultContentType: string,
 
+    defaultContentTypeKey: string,
+
     /**
      * Regex which is using for extract JSON Path parts.
      */
@@ -90,6 +92,19 @@ export interface ConvertorConfig {
      * fixme contentType is not using now
      */
     responseModelName: (baseTypeName, code, contentType?) => string,
+
+    /**
+     * Name of directory with extracted models and types.
+     */
+    typingsDirectory: string;
+
+    /**
+     * Name of directory with generated API-services
+     * for Angular.
+     */
+    servicesDirectory: string
+
+    mocksDirectory: string
 }
 
 /**
@@ -103,6 +118,8 @@ export const defaultConfig: ConvertorConfig = {
      * in type names.
      */
     defaultContentType: "application/json",
+
+    defaultContentTypeKey: 'json',
 
     /**
      * Regex which is using for extract JSON Path parts.
@@ -157,7 +174,7 @@ export const defaultConfig: ConvertorConfig = {
      * fixme contentType is not using now
      */
     headersModelName: (baseTypeName, code, contentType = null) =>
-        `${baseTypeName}Headers_response${code}`,
+        `${baseTypeName}HeadersResponse${code}`,
 
     /**
      * Function that create Request Model name.
@@ -184,10 +201,23 @@ export const defaultConfig: ConvertorConfig = {
      * @returns {string}
      * fixme contentType is not using now
      */
-    responseModelName: (baseTypeName, code, contentType = null) =>
+    responseModelName: (baseTypeName, code, contentTypeKey = null) =>
         `${baseTypeName}${
-            contentType
-                ? `_${_.camelCase(contentType)}`
+            (contentTypeKey && contentTypeKey !== defaultConfig.defaultContentTypeKey) 
+                ? `_${_.capitalize(contentTypeKey)}`
                 : ''
-        }_response${code}`
+        }Response${code != 200 ? code : ''}`,
+
+    /**
+     * Name of directory with extracted models and types.
+     */
+    typingsDirectory: './typings',
+
+    /**
+     * Name of directory with generated API-services
+     * for Angular.
+     */
+    servicesDirectory: './services',
+
+    mocksDirectory: './mocks'
 };

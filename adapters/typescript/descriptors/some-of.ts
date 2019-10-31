@@ -22,6 +22,7 @@ enum SomeOfType {
  *  - allOf
  */
 // fixme allOf должны проверять типы (не может number смешиваться с object) и проставлять extends для интерфейсов
+// fixme allOf should make common interface (if it s a object) and set "extends"
 export class SomeOfTypeScriptDescriptor extends AbstractTypeScriptDescriptor implements DataTypeDescriptor {
 
     /**
@@ -33,7 +34,7 @@ export class SomeOfTypeScriptDescriptor extends AbstractTypeScriptDescriptor imp
 
     constructor (
 
-        protected schema: any,
+        public schema: any,
 
         /**
          * Родительский конвертор, который используется
@@ -137,7 +138,7 @@ export class SomeOfTypeScriptDescriptor extends AbstractTypeScriptDescriptor imp
         rootLevel: boolean = true
     ): string {
         const comment = this.getComments();
-        return `${rootLevel ? `${comment}type ${this.modelName} = ` : ''}${
+        return `${rootLevel ? `${comment}export type ${this.modelName} = ` : ''}${
             this.variants
                 ? _.uniq(_.map(
                     this.variants,
@@ -160,8 +161,8 @@ export class SomeOfTypeScriptDescriptor extends AbstractTypeScriptDescriptor imp
      */
     private _getSomeOfSchemes(schema, commonPart, type: SomeOfType): any[] {
         let schemes = [];
+
         switch (type) {
-            case SomeOfType.AnyOf:
             case SomeOfType.AllOf:
                 schemes.push(_.merge.apply(
                     _,
@@ -177,7 +178,7 @@ export class SomeOfTypeScriptDescriptor extends AbstractTypeScriptDescriptor imp
                         }
                     )
                 ));
-                if (type === SomeOfType.AllOf) break;
+            case SomeOfType.AnyOf:
             case SomeOfType.OneOf:
                 schemes = _.flattenDeep([schemes, schema[type]], 1);
         }

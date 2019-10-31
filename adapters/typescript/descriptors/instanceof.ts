@@ -1,6 +1,5 @@
 import * as _ from 'lodash';
 
-// todo оптимизировать файлову структуру и типизацию
 import {
     DataTypeDescriptor,
     DataTypeContainer
@@ -9,13 +8,10 @@ import { BaseConvertor } from "../../../core";
 import { AbstractTypeScriptDescriptor } from "./abstract";
 
 
-export class ArrayTypeScriptDescriptor extends AbstractTypeScriptDescriptor implements DataTypeDescriptor {
+export class Instanceof extends AbstractTypeScriptDescriptor implements DataTypeDescriptor {
 
-    /**
-     * Описание типа данных для элементов массива.
-     * fixme не поддерживает конкретное перечисление (items: [...]), пока только общее (items: {...})
-     */
-    protected itemsDescription: DataTypeContainer;
+    protected instanceOf: string;
+    protected genericOf: DataTypeContainer | DataTypeDescriptor;
 
     constructor (
 
@@ -62,14 +58,15 @@ export class ArrayTypeScriptDescriptor extends AbstractTypeScriptDescriptor impl
             originalSchemaPath
         );
 
-        // fixme не поддерживает конкретное перечисление (items: [...]), пока только общее (items: {...})
-        if (schema.items) {
-            this.itemsDescription = convertor.convert(
-                schema.items,
+        this.instanceOf = schema['instanceof'];
+
+        if (schema['x-generic']) {
+            this.genericOf = convertor.convert(
+                schema['x-generic'],
                 context,
                 null,
                 (modelName || suggestedModelName)
-                    ? `${(modelName || suggestedModelName)}Items`
+                    ? `${(modelName || suggestedModelName)}FormDataFormat`
                     : null
             );
         }
@@ -93,13 +90,10 @@ export class ArrayTypeScriptDescriptor extends AbstractTypeScriptDescriptor impl
         rootLevel: boolean = true
     ): string {
         const comment = this.getComments();
-        return `${rootLevel ? `${comment}export type ${this.modelName} = ` : ''}${
-            this.itemsDescription ? _.map(
-                this.itemsDescription,
-                (descr: DataTypeDescriptor) => {
-                    return `Array<${descr.render(childrenDependencies,false)}>`;
-                }
-            ).join(' | ') : 'any[]'
-        }`;
+        return `${rootLevel ? `${comment}export type ${this.modelName} ${
+            this.genericOf
+                ? `<${this.genericOf}>`
+                : ''
+        } = ` : ''}${ this.instanceOf }`;
     }
 }

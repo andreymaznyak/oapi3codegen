@@ -18,7 +18,7 @@ import {
     DescriptorContext
 } from '../../core';
 
-// правила для определения дипа дескриптора
+// rules that helps determine a type of descriptor
 import { rules } from "./descriptors";
 
 /**
@@ -32,7 +32,7 @@ interface SchemaHold {
 }
 
 /**
- * Класс загрузчика для TypeScript.
+ * Class of converter from OAPI3 to TypeScript types.
  */
 export class Convertor extends BaseConvertor {
 
@@ -163,7 +163,22 @@ export class Convertor extends BaseConvertor {
 
         // получение по $ref
         if (schema['$ref']) {
-            if(_.values(schema).length === 1) {
+
+            // исключаются элементы, которые не оказывают
+            // влияния на определение типа (title, nullable и т.д.)
+            const valuableOptionsCount = _.values(
+                _.omit(schema, [
+                    // fixme move to config. copypasted in descriptors/object.ts
+                    'description',
+                    'title',
+                    'example',
+                    'default',
+                    'readonly',
+                    'nullable'
+                ]),
+            ).length;
+
+            if(valuableOptionsCount === 1) {
                 result = (name && !this.config.implicitTypesRefReplacement)
                     // если неанонимный, то создает новый на основе предка
                     ? this.convert(

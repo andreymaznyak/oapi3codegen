@@ -8,10 +8,14 @@ import {
 import { BaseConvertor } from "../../../core";
 import { AbstractTypeScriptDescriptor } from "./abstract";
 
-interface PropertyDescriptor {
+// todo support default values!
+export interface PropertyDescriptor {
     required: boolean;
-    typeContainer: DataTypeContainer,
-    comment: string
+    readOnly: boolean;
+    typeContainer: DataTypeContainer;
+    comment: string;
+    defaultValue: undefined;
+    exampleValue: undefined;
 }
 
 export class ObjectTypeScriptDescriptor extends AbstractTypeScriptDescriptor implements DataTypeDescriptor {
@@ -21,13 +25,13 @@ export class ObjectTypeScriptDescriptor extends AbstractTypeScriptDescriptor imp
      * (интерфейсы и классы).
      * @type {{}}
      */
-    protected propertiesSets: [{
+    public propertiesSets: [{
         [name: string]: PropertyDescriptor
     }] = [ {} ];
 
     constructor (
 
-        protected schema: any,
+        public schema: any,
 
         /**
          * Родительский конвертор, который используется
@@ -98,12 +102,25 @@ export class ObjectTypeScriptDescriptor extends AbstractTypeScriptDescriptor imp
                         v => v === propName
                     ) !== -1,
 
+                    readOnly: propSchema.readOnly,
+
                     typeContainer,
 
                     comment: typeContainer[0]
                         ? typeContainer[0].getComments()
-                        : ''
+                        : '',
+
+                    defaultValue: propSchema.default,
+                    exampleValue: this._findExampleInTypeContainer(typeContainer)
                 };
+
+                // last step: apply "nullable" property after schema is
+                // interpreted to make life easier
+                if (propSchema.nullable) {
+                    this._makeSchemaNullable(
+                        propSchema
+                    );
+                }
 
                 this.propertiesSets[0][propName] = propDescr;
             });
@@ -119,19 +136,57 @@ export class ObjectTypeScriptDescriptor extends AbstractTypeScriptDescriptor imp
             });
         }
 
-        // todo: do additionalProperties support
+        // fixme: do additionalProperties support when additionalProperties === true
 
         // если по итогам, свойств нет, указывается
         // универсальное описание
-        if(!_.keys(this.propertiesSets[0] || {}).length) {
-            this.propertiesSets[0]['[key: string]'] = {
-                required: true,
-                comment: '',
-                // если нет свойств, получает тип Any
-                typeContainer: convertor.convert(
+        else if(
+            schema.additionalProperties ||
+            ( !_.keys(this.propertiesSets[0] || {}).length
+              && (schema.additionalProperties !== false))
+        ) {
+            const addProp = schema.additionalProperties;
+            const typeContainer = ('object' === typeof addProp)
+                ? convertor.convert(
+                    // these properties not affect a schema
+                    _.omit(addProp, [
+                        // fixme move to config. copypasted in typescript/convertot.ts
+                        'description',
+                        'title',
+                        'example',
+                        'default',
+                        'readonly',
+                        'nullable'
+                    ]),
+                    context,
+                    null,
+                    `${modelName}Properties`
+                )
+                : convertor.convert(
                     <any>{},
                     <any>{}
-                )
+                );
+
+            this.propertiesSets[0]['[key: string]'] = {
+                required: true,
+                comment: typeContainer[0]
+                    ? typeContainer[0].getComments()
+                    : '',
+                readOnly: ('object' === typeof addProp)
+                    ? addProp.readOnly || false
+                    : false,
+                // если нет свойств, получает тип Any
+                typeContainer: typeContainer,
+                defaultValue: undefined,
+                exampleValue: undefined
+            }
+
+            // last step: apply "nullable" property after schema is
+            // interpreted to make life easier
+            if (schema.additionalProperties && schema.additionalProperties.nullable) {
+                this._makeSchemaNullable(
+                    schema.additionalProperties
+                );
             }
         }
     }
@@ -179,7 +234,7 @@ export class ObjectTypeScriptDescriptor extends AbstractTypeScriptDescriptor imp
                 propertySet,
                 (descr: PropertyDescriptor, name) => {
                     const propName = name.match(/\-/) ? `'${name}'` : name;
-                    return `\n\n${descr.comment}${propName}${!descr.required ? '?' : ''}: ${
+                    return `\n\n${descr.comment}${descr.readOnly?'readonly ':''}${propName}${!descr.required ? '?' : ''}: ${
                         _.map(
                             descr.typeContainer,
                             type => type.render(childrenDependencies, false)
@@ -190,6 +245,13 @@ export class ObjectTypeScriptDescriptor extends AbstractTypeScriptDescriptor imp
         ).join(' | ');
 
         return [prefix, properties].join('');
+    }
+
+    public getExampleValue(): {[key:string]: any} {
+        return this.schema.example || _.mapValues(
+            this.propertiesSets[0],
+            (v: PropertyDescriptor) => v.exampleValue || v.defaultValue
+        );
     }
 
     /**
@@ -215,5 +277,67 @@ export class ObjectTypeScriptDescriptor extends AbstractTypeScriptDescriptor imp
         return filteredAncestors.length
             ? ` extends ${_.map(filteredAncestors, v => v.modelName).join(', ')} `
             : '';
+    }
+
+    private _findExampleInTypeContainer(
+        typeContainer: DataTypeContainer
+    ): any {
+        for (const descr of typeContainer) {
+            if (descr instanceof ObjectTypeScriptDescriptor) {
+                return descr.getExampleValue();
+            } else {
+                const exV = descr.schema.example || descr.schema.default;
+                if (exV) return exV;
+            }
+        }
+
+        return undefined;
+    }
+
+    // fixme has to delete
+    private _makeSchemaNullable(schema: any): void {
+        // base scenario: simple type
+
+        /*
+        Old code:
+
+        if (schema.type) {
+            if ( _.isArray(schema.type)
+                 && !_.find(schema.type, v => v === 'null')) {
+                schema.type.push('null')
+            } else if ('string' === typeof schema.type) {
+                schema.type = [schema.type, 'null'];
+            }
+        } else if ( schema.$ref && !schema.anyOf &&
+            // next scenario: single $ref
+            !schema.oneOf && !schema.allOf) {
+
+            const ref = schema.$ref;
+            delete schema.$ref;
+            schema.anyOf = [{type: 'null'}, {$ref: ref}]
+        } else {
+            // last scenario: variants
+            _.each(
+                schema.oneOf || schema.anyOf || schema.allOf || [],
+                (subSchema) => {
+                    this._makeSchemaNullable(subSchema)
+                }
+            )
+        }
+        */
+
+        // New code: now actually have to wrap schema
+
+        // delete schema.nullable;
+        //
+        // const schemaCopy = _.cloneDeep(schema);
+        // for(const propName of _.keys(schema)) {
+        //     delete schema[propName];
+        // }
+        //
+        // schema.anyOf = [
+        //     {type: 'null'},
+        //     schemaCopy
+        // ];
     }
 }
