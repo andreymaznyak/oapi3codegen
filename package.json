@@ -1,6 +1,6 @@
 {
   "name": "@cme/oapi3codegen",
-  "version": "2.0.0-tmp",
+  "version": "2.0.0",
   "description": "OpenAPI 3 codegeneration for TypeScript: interfaces, validations, APIs",
   "main": "index.ts",
   "bin": {
