@@ -6,7 +6,7 @@ import {
     SchemaNumber,
     SchemaString,
     SchemaObject
-} from 'oapi3codegen/oapi-defs/index';
+} from '../oapi-defs';
 
 export type SubSchema = | Schema
                  | SchemaArray

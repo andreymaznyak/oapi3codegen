@@ -1,17 +1,17 @@
 import { Inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
-import { ApiMethodBase } from '@cme/oapi3codegen-agent-angular/api-method.base';
-import { ApiSchema } from '@cme/oapi3codegen-agent-angular/api-schema';
+import { ApiMethodBase } from '@cme/oapi3codegen/angular/api-method.base';
+import { ApiSchema } from '@cme/oapi3codegen/angular/api-schema';
 import {
   SERVERS_INFO,
   ServersInfo
-} from '@cme/oapi3codegen-agent-angular/servers.info.provider';
+} from '@cme/oapi3codegen/angular/servers.info.provider';
 
 import {
   API_ERROR_HANDLER,
   ApiErrorHandler
-} from '@cme/oapi3codegen-agent-angular/event-manager.provider';
+} from '@cme/oapi3codegen/angular/event-manager.provider';
 
 // Typings for this API method
 import { {{typingsDependencies}} } from '{{typingsDirectory}}';

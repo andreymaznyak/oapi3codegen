@@ -5,14 +5,13 @@ import {
 
 import {
     InjectionToken,
-    EventEmitter
 } from '@angular/core';
 
 import {
     HttpRequest,
-    HttpErrorResponse, HttpEvent
+    HttpErrorResponse,
+    HttpEvent
 } from '@angular/common/http';
-import { ApiMethodBase } from 'oapi3codegen-agent-angular/api-method.base';
 
 /**
  * Тип API-ошибки.

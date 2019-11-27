@@ -82,7 +82,7 @@ const convertor: Convertor = new Convertor(convertorConfig);
 
 const metaInfo: ApiMetaInfo[] = [];
 
-const apiServiceTemplate = _.template(require('@cme/oapi3codegen-agent-angular/templates')
+const apiServiceTemplate = _.template(require('../angular/templates')
     .get('api-service')
     .toString());
 

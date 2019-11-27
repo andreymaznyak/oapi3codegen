@@ -1,6 +1,6 @@
 {
   "name": "@cme/oapi3codegen",
-  "version": "2.0.1",
+  "version": "2.0.3",
   "description": "OpenAPI 3 codegeneration for TypeScript: interfaces, validations, APIs",
   "main": "index.ts",
   "bin": {
@@ -14,7 +14,6 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:intergate": "npm run build && rm -rf ./generated && node ./dist/cli.js --srcPath ./tests/media.json --destPath ./generated --separatedFiles true"
   },
-  "repository": "https://github.com/koshevy/oapi3codegen",
   "keywords": [
     "api",
     "openapi",
@@ -31,10 +30,8 @@
     "code-generation",
     "codegen"
   ],
-  "author": "koshevy",
   "license": "MIT",
   "dependencies": {
-    "@cme/oapi3codegen-agent-angular": "^2.0.1",
     "ajv": "^6.4.0",
     "download": "^7.0.0",
     "execa": "^0.10.0",

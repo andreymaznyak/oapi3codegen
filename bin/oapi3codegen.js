@@ -29,7 +29,7 @@ const cliTsPath = path.resolve(__dirname, '../dist/cli.js');
 // default plugin dir: for local install
 let oapi3codegenDir = path.resolve(
   process.cwd(),
-  './node_modules/oapi3codegen'
+  './node_modules/@cme/oapi3codegen'
 );
 
 // plugin dir for global install
